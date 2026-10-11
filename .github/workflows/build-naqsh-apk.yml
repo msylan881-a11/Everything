@@ -1,1 +1,62 @@
+name: Build NAQSH AI APK
 
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download repository
+        uses: actions/checkout@v4
+
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Check project
+        run: |
+          test -f app/pubspec.yaml || {
+            echo "ERROR: app/pubspec.yaml is missing"
+            exit 1
+          }
+
+      - name: Generate Android project if missing
+        run: |
+          cd app
+          if [ ! -d android ]; then
+            flutter create --platforms=android --org com.naqsh.ai .
+          fi
+
+      - name: Install dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Analyze Flutter project
+        working-directory: app
+        run: flutter analyze
+
+      - name: Build release APK
+        working-directory: app
+        run: flutter build apk --release
+
+      - name: Upload real APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: NAQSH-AI-APK
+          path: app/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
